@@ -2,18 +2,21 @@ import pandas as pd
 import datetime as dt
 import seaborn as sns
 import matplotlib.pyplot as plt
-import numpy as np
+from dotenv import load_dotenv
+import os
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', None)
 pd.set_option('display.float_format', lambda x: '%.5f' % x)
 
+load_dotenv()
+DATASET_PATH = os.getenv("DATASET_PATH")
+
 class RFM:
     def __init__(self):
         self.RFM = pd.DataFrame()
         self.RFM_outlier_free = pd.DataFrame() 
-        url = "C:/Users/baha.ulug/Desktop/projects/crm-projects/datasets/online_retail_II.xlsx"
-        self.df = pd.read_excel(url)
+        self.df = pd.read_excel(DATASET_PATH)
         print(self.df.info())
     
     def data_prep(self):
@@ -33,7 +36,6 @@ class RFM:
                                     'Invoice': lambda inv: inv.nunique(),
                                     'TotalPrice': lambda price: price.sum()})
         self.RFM.columns=['Recency','Frequency','Monetary']
-
         self.RFM['Recency'] = pd.to_numeric(self.RFM['Recency'], errors='coerce')
         self.RFM['Frequency'] = pd.to_numeric(self.RFM['Frequency'], errors='coerce')
         self.RFM['Monetary'] = pd.to_numeric(self.RFM['Monetary'], errors='coerce')
@@ -48,7 +50,6 @@ class RFM:
         self.RFM["F"] = pd.qcut(self.RFM['Frequency'].rank(method="first"), 5, labels=[1, 2, 3, 4, 5])
         self.RFM["M"] = pd.qcut(self.RFM['Monetary'], 5, labels=[1,2,3,4,5])
         self.RFM['RFM'] = self.RFM['R'].astype(str) + self.RFM['F'].astype(str) + self.RFM['M'].astype(str)
-        
         self.RFM['RFM']   = self.RFM['RFM'].astype(int)
         self.RFM['R']   = self.RFM['R'].astype(int)
         self.RFM['F']   = self.RFM['F'].astype(int)
@@ -77,11 +78,3 @@ class RFM:
         plt.show()
         sns.boxplot(x=self.RFM_outlier_free['Monetary'],color='Green',showfliers=False)
         plt.show()
-
-if __name__ == '__main__':   
-    rfm = RFM()
-    rfm.data_prep()
-    rfm.get_rfm_values()
-    rfm.calculate_rfm_score()
-    rfm.remove_outliers()
-    rfm.plot_boxplot()
