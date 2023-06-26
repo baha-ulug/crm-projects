@@ -6,7 +6,6 @@
 # 1. Data Preperation
 ##############################################################
 
-import datetime as dt
 from datetime import timedelta
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -77,11 +76,13 @@ def rfm_df(df):
     rfm.columns = ['recency_cltv_p', 'tenure', 'frequency', 'monetary']
 
     # monetary avg hesaplama --> Gamma Gamma modeli bu şekilde istiyor
+    # We need to calculate the average profit:
     rfm["monetary"] = rfm["monetary"] / rfm["frequency"]
 
     rfm.rename(columns={"monetary": "monetary_avg"}, inplace=True)
 
     # recency ve tenure değişkenlerini haftalığa çevirme
+    # BG/NBD model asks us for recency and T weekly
     rfm["recency_weekly_p"] = rfm["recency_cltv_p"] / 7
     rfm["tenure_weekly_p"] = rfm["tenure"] / 7
 
@@ -111,6 +112,7 @@ def pred_bgf(bgf,rfm,week=24,n_cust=10):
     print(top_customers.head(n_cust))
 
 def exp_sales(bgf,rfm,week=24):
+    #Who are the 10 customers we expect the most to purchase in a month?
     rfm["exp_sales_6_month"] = bgf.predict(week,
                                             rfm['frequency'],
                                             rfm['recency_weekly_p'],
@@ -150,13 +152,13 @@ def pred_ggf(ggf,rfm):
 # 4. BG-NBD ve GG modeli ile CLTV'nin hesaplanması.
 ##############################################################
 
-def calculate_clv(bgf,ggf,rfm):
+def calculate_clv(bgf,ggf,rfm,month):
     cltv = ggf.customer_lifetime_value(bgf,
                                     rfm['frequency'],
                                     rfm['recency_weekly_p'],
                                     rfm['tenure_weekly_p'],
                                     rfm['monetary_avg'],
-                                    time=6,
+                                    time=month,
                                     freq="W",
                                     discount_rate=0.01)
 
