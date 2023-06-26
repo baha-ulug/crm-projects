@@ -13,6 +13,8 @@ import matplotlib.pyplot as plt
 from lifetimes import BetaGeoFitter
 from lifetimes import GammaGammaFitter
 from lifetimes.plotting import plot_period_transactions
+from dotenv import load_dotenv
+import os 
 
 pd.set_option('display.max_columns', None)
 pd.set_option('display.max_rows', 10)
@@ -32,7 +34,10 @@ def replace_with_thresholds(dataframe, variable):
     dataframe.loc[(dataframe[variable] > up_limit), variable] = up_limit
 
 def read_data():
-    df =pd.read_excel("datasets/online_retail_II.xlsx", sheet_name="Year 2010-2011")
+    #df =pd.read_excel("datasets/online_retail_II.xlsx", sheet_name="Year 2010-2011")
+    load_dotenv()
+    DATASET_PATH = os.getenv("DATASET_PATH")
+    df = pd.read_excel(DATASET_PATH)
     return df
 
 def get_info(df):
@@ -55,17 +60,13 @@ def get_analyse_date(df):
     #today_date = dt.datetime(2011, 12, 11)
     return today_date
 
-df_ = read_data()
-df = df_.copy()
-df = prep_data(df)
-today_date = get_analyse_date(df)
-
 #############################################
 # RFM Table
 #############################################
 # metrikleri oluşturma
 
-def rfm_df():
+def rfm_df(df):
+    today_date = get_analyse_date(df)
     rfm = df.groupby('Customer ID').agg({'InvoiceDate': [lambda date: (date.max()-date.min()).days,
                                                         lambda date: (today_date-date.min()).days],
                                         'Invoice': lambda num: num.nunique(),
@@ -90,8 +91,6 @@ def rfm_df():
     rfm["frequency"] = rfm["frequency"].astype(int)
     return rfm
 
-rfm = rfm_df(df)
-
 ##############################################################
 # 2. Creation of BG/NBD model
 ##############################################################
@@ -103,7 +102,7 @@ def fit_bgf(rfm):
             rfm['tenure_weekly_p'])
     return bgf
 
-def pred_bgf(bgf,week=24,n_cust=10):
+def pred_bgf(bgf,rfm,week=24,n_cust=10):
     # week/4 ay içinde en çok satın alma beklediğimiz n_cust müşteri kimdir?
     top_customers = bgf.conditional_expected_number_of_purchases_up_to_time(week,
                                                             rfm['frequency'],
@@ -116,7 +115,6 @@ def exp_sales(bgf,rfm,week=24):
                                             rfm['frequency'],
                                             rfm['recency_weekly_p'],
                                             rfm['tenure_weekly_p'])
-
     rfm.sort_values("exp_sales_6_month", ascending=False).head(20)
     return rfm
 
@@ -133,14 +131,8 @@ def eval_predictions(bgf):
     plot_period_transactions(bgf)
     plt.show()
 
-bgf = fit_bgf(rfm)
-pred_bgf(rfm,24,10)
-rfm = exp_sales(bgf,rfm,24)
-expected_transaction(bgf,rfm,24)
-eval_predictions(bgf)
-
 ##############################################################
-# 3. GAMMA-GAMMA modelinin kurulması
+# 3. Creation of GAMMA-GAMMA Model
 ##############################################################
 def fit_ggf(rfm):
     ggf = GammaGammaFitter(penalizer_coef=0.01)
@@ -150,14 +142,9 @@ def fit_ggf(rfm):
 def pred_ggf(ggf,rfm):
     ggf.conditional_expected_average_profit(rfm['frequency'],
                                             rfm['monetary_avg']).sort_values(ascending=False).head(10)
-
     rfm["expected_average_profit"] = ggf.conditional_expected_average_profit(rfm['frequency'],
                                                                             rfm['monetary_avg'])
     return rfm
-
-ggf = fit_ggf(rfm)
-rfm = pred_ggf(ggf,rfm)
-print(rfm.sort_values("expected_average_profit", ascending=False).head(20))
 
 ##############################################################
 # 4. BG-NBD ve GG modeli ile CLTV'nin hesaplanması.
@@ -177,10 +164,4 @@ def calculate_clv(bgf,ggf,rfm):
     cltv.sort_values(by="clv", ascending=False).head(50)
     rfm_cltv_final = rfm.merge(cltv, on="Customer ID", how="left")
     rfm_cltv_final.sort_values(by="clv", ascending=False).head()
-
     return rfm_cltv_final
-
-rfm_cltv_final = calculate_clv(bgf,ggf,rfm)
-
-print(rfm_cltv_final.head())
-print(rfm_cltv_final.shape)
