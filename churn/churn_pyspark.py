@@ -19,14 +19,15 @@ pd.set_option('display.max_columns', None)
 pd.set_option('display.float_format', lambda x: '%.2f' % x)
 
 def create_session():
-    findspark.init("C:\spark\spark-3.1.1-bin-hadoop2.7")
+    #findspark.init("C:\spark\spark-3.1.1-bin-hadoop2.7")
+    #spark = SparkSession.builder.master("local[*]").getOrCreate()
 
     spark = SparkSession.builder \
         .master("local") \
         .appName("pyspark_giris") \
         .getOrCreate()
 
-    sc = spark.sparkContext
+    #sc = spark.sparkContext
     # sc.stop()
 
     spark_df = spark.read.csv("datasets/churn2.csv", header=True, inferSchema=True)
