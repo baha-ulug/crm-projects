@@ -8,14 +8,12 @@ import importlib
 warnings.filterwarnings('ignore')
 sns.set_theme(color_codes=True)
 
-
 def load_df():
     #load the dataframe and set column name
-    df=pd.read_csv('amazon-product-reviews/ratings_Electronics.csv',
+    df=pd.read_csv('datasets/ratings_Electronics.csv',
                    names=['userId', 'productId','rating','timestamp'])
     df=df.sample(n=1564896,ignore_index=True)
     return df
-
 electronics_data = load_df()
 
 def df_info(df):
@@ -25,15 +23,13 @@ def df_info(df):
     print(df.isnull().sum())
 
     #observe duplicate records
-    df[df.duplicated()].shape[0]
-
+    print(df[df.duplicated()].shape[0])
 df_info(electronics_data)
 
 def prep_df(df):
     #drop timestamp column
     df.drop('timestamp',axis=1,inplace=True)
     return df
-
 electronics_data = prep_df(electronics_data)
 
 def plot_df(df):
@@ -64,54 +60,72 @@ Popülariteye dayalı öneri sistemindeki sorun,
 kişiselleştirmenin bu yöntemle mümkün olmamasıdır, 
 yani kullanıcının davranışını bilseniz bile öğeleri buna göre öneremezsiniz.
 """
-data=electronics_data.groupby('productId').filter(lambda x:x['rating'].count()>=50)
-no_of_rating_per_product=data.groupby('productId')['rating'].count().sort_values(ascending=False)
-no_of_rating_per_product.head()
+def filter_df(df):
+    data=df.groupby('productId').filter(lambda x:x['rating'].count()>=50)
+    return data
+def plot_no_of_rating_count(df):
+    data = filter_df(df)
+    no_of_rating_per_product=data.groupby('productId')['rating'].count().sort_values(ascending=False)
+    no_of_rating_per_product.head()
 
-#top 20 product
-no_of_rating_per_product.head(20).plot(kind='bar')
-plt.xlabel('Product ID')
-plt.ylabel('num of rating')
-plt.title('top 20 procduct')
-plt.show()
+    #top 20 product
+    no_of_rating_per_product.head(20).plot(kind='bar')
+    plt.xlabel('Product ID')
+    plt.ylabel('num of rating')
+    plt.title('top 20 procduct')
+    plt.show()
+
+plot_no_of_rating_count(electronics_data)
+
+def plot_mean_rating_count(df):
+    data = filter_df(df)
+    #average rating product
+    mean_rating_product_count=pd.DataFrame(data.groupby('productId')['rating'].mean())
+    mean_rating_product_count['rating_counts'] = pd.DataFrame(data.groupby('productId')['rating'].count())
+    mean_rating_product_count.head()
+
+    #plot the rating distribution of average rating product
+    plt.hist(mean_rating_product_count['rating'],bins=100)
+    plt.title('Mean Rating distribution')
+    plt.show()
+
+    #check the skewness of the mean rating data
+    mean_rating_product_count['rating'].skew()
+    #it is highly negative skewed
+
+    #highest mean rating product
+    mean_rating_product_count[mean_rating_product_count['rating_counts']==mean_rating_product_count['rating_counts'].max()]
+
+    #min mean rating product
+    print('min average rating product : ',mean_rating_product_count['rating_counts'].min())
+    print('total min average rating products : ',mean_rating_product_count[mean_rating_product_count['rating_counts']==mean_rating_product_count['rating_counts'].min()].shape[0])
+    return mean_rating_product_count
+
+mean_rating_product_count = plot_mean_rating_count(electronics_data)
 
 
-#average rating product
-mean_rating_product_count=pd.DataFrame(data.groupby('productId')['rating'].mean())
-mean_rating_product_count['rating_counts'] = pd.DataFrame(data.groupby('productId')['rating'].count())
-mean_rating_product_count.head()
+def plot_rating_count_mrpc(mean_rating_product_count):
+    #plot the rating count of mean_rating_product_count
+    plt.hist(mean_rating_product_count['rating_counts'],bins=100)
+    plt.title('rating count distribution')
+    plt.show()
 
-#plot the rating distribution of average rating product
-plt.hist(mean_rating_product_count['rating'],bins=100)
-plt.title('Mean Rating distribution')
-plt.show()
+plot_rating_count_mrpc(mean_rating_product_count)
 
-#check the skewness of the mean rating data
-mean_rating_product_count['rating'].skew()
-#it is highly negative skewed
+def plot_joint__mrpc(mean_rating_product_count):
+    #joint plot of rating and rating counts
+    sns.jointplot(x='rating',y='rating_counts',data=mean_rating_product_count)
+    plt.title('Joint Plot of rating and rating counts')
+    plt.tight_layout()
+    plt.show()
 
-#highest mean rating product
-mean_rating_product_count[mean_rating_product_count['rating_counts']==mean_rating_product_count['rating_counts'].max()]
+    plt.scatter(x=mean_rating_product_count['rating'],y=mean_rating_product_count['rating_counts'])
+    plt.show()
 
-#min mean rating product
-print('min average rating product : ',mean_rating_product_count['rating_counts'].min())
-print('total min average rating products : ',mean_rating_product_count[mean_rating_product_count['rating_counts']==mean_rating_product_count['rating_counts'].min()].shape[0])
+    print('Correlation between Rating and Rating Counts is : {} '.format(mean_rating_product_count['rating'].corr(mean_rating_product_count['rating_counts'])))
 
-#plot the rating count of mean_rating_product_count
-plt.hist(mean_rating_product_count['rating_counts'],bins=100)
-plt.title('rating count distribution')
-plt.show()
 
-#joint plot of rating and rating counts
-sns.jointplot(x='rating',y='rating_counts',data=mean_rating_product_count)
-plt.title('Joint Plot of rating and rating counts')
-plt.tight_layout()
-plt.show()
-
-plt.scatter(x=mean_rating_product_count['rating'],y=mean_rating_product_count['rating_counts'])
-plt.show()
-
-print('Correlation between Rating and Rating Counts is : {} '.format(mean_rating_product_count['rating'].corr(mean_rating_product_count['rating_counts'])))
+plot_joint__mrpc(mean_rating_product_count)
 
 ##################################################
 # Collaborative filtering Recommendation
@@ -130,7 +144,8 @@ iki alt kategorisi vardır.
 from surprise import KNNWithMeans, Dataset, accuracy, Reader
 from surprise.model_selection import train_test_split
 
-def load_data(data):
+def load_data(df):
+    data = filter_df(df)
     # Load dataset
     reader = Reader(rating_scale=(1, 5))
     surprise_data = Dataset.load_from_df(data, reader)
@@ -158,7 +173,7 @@ def evaluate_predictions(test_pred):
     return rmse
 
 # Usage example
-surprise_data = load_data(data)
+surprise_data = load_data(electronics_data)
 trainset, testset = split_data(surprise_data)
 algo = build_model(trainset, k=5, user_based=False)
 test_pred = make_predictions(algo, testset)
@@ -194,14 +209,12 @@ def calculate_correlation_matrix(decomposed_matrix):
     correlation_matrix = np.corrcoef(decomposed_matrix)
     return correlation_matrix
 
-def find_similar_products(correlation_matrix, product_id, threshold, num_recommendations):
-    product_names = list(correlation_matrix.index)
+def find_similar_products(x_ratings_matrix, correlation_matrix, product_id, threshold, num_recommendations):
+    product_names = list(x_ratings_matrix.index)
     product_index = product_names.index(product_id)
-    
     correlation_product_ID = correlation_matrix[product_index]
-    highly_correlated_indices = np.where(correlation_product_ID > threshold)[0]
-    
-    recommendations = list(product_names[highly_correlated_indices][:num_recommendations])
+    highly_correlated_indices = list(x_ratings_matrix.index[correlation_product_ID > threshold])
+    recommendations = highly_correlated_indices[:num_recommendations]
     
     return recommendations
 
@@ -211,6 +224,7 @@ def recommend_similar_products(data, product_id, threshold=0.75, num_recommendat
     
     # Create ratings matrix
     ratings_matrix = create_ratings_matrix(data_sample)
+    x_ratings_matrix=ratings_matrix.T
     
     # Perform matrix decomposition using Truncated SVD
     decomposed_matrix = perform_svd(ratings_matrix, n_components)
@@ -219,6 +233,14 @@ def recommend_similar_products(data, product_id, threshold=0.75, num_recommendat
     correlation_matrix = calculate_correlation_matrix(decomposed_matrix)
     
     # Find highly correlated products
-    recommendations = find_similar_products(correlation_matrix, product_id, threshold, num_recommendations)
+    recommendations = find_similar_products(x_ratings_matrix, 
+                                            correlation_matrix, 
+                                            product_id, threshold, 
+                                            num_recommendations)
     
     return recommendations
+
+
+product_id = "B00001P4ZH"
+recommendations = recommend_similar_products(electronics_data,product_id)
+print("recommendations for {product_id} are: ",recommendations)
