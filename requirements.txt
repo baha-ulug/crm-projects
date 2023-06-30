@@ -1,4 +1,3 @@
-Lifetimes==0.11.3
 pandas==2.0.2
 python-dotenv==1.0.0
 matplotlib==3.7.1
@@ -7,3 +6,5 @@ seaborn==0.12.2
  
 #pyspark==3.4.1 #Only for customer churn analysis
 #findspark==2.0.1 #Only for customer churn analysis
+#mlxtend==0.22.0 #Only for ARL 
+#Lifetimes==0.11.3 #Only for CLV calculation
