@@ -5,113 +5,75 @@
 ############################################
 # Data Preparation
 ###########################################
-
 import pandas as pd
 pd.set_option('display.max_columns', None)
 pd.set_option('display.expand_frame_repr', False)
 from mlxtend.frequent_patterns import apriori, association_rules
 from dotenv import load_dotenv
+from preprocess.eda import check_df
+from preprocess.data_prep import crm_data_prep, create_invoice_product_df
 import os 
 
 def read_data():
-    #df =pd.read_excel("datasets/online_retail_II.xlsx", sheet_name="Year 2010-2011")
-    load_dotenv()
-    DATASET_PATH = os.getenv("DATASET_PATH")
+    #dotenv_path = os.path.join(os.getcwd(), '.env')
+    #load_dotenv(dotenv_path, verbose=True)
+    #load_dotenv()
+    #DATASET_PATH = os.getenv("DATASET_PATH")
+    DATASET_PATH = "C:/Users/baha.ulug/Desktop/projects/crm-projects/datasets/online_retail_II.xlsx"
     df = pd.read_excel(DATASET_PATH)
     return df
-df_ = read_data()
-df = df_.copy()
 
-#HELPERS
-from preprocess.eda import check_df
-check_df(df)
+def data_prep(df):
+    df.dropna(inplace=True)
+    df = df[~df["Invoice"].str.contains("C", na=False)]
+    df['TotalPrice'] = df['Quantity'] * df['Price']
+    df['InvoiceDate'] = pd.to_datetime(df['InvoiceDate'])
+    return df
 
-#veri düzenleme
-#eksik verileri silme
-#gereken düzeltmeleri yaparak veriyi betimsel olarak hazırlama.
-check_df(df)
+def eda_df():
+    #Her bir ürünün StockCode a göre Quantity sini sum ediyoruz.
+    df.groupby(["Invoice","StockCode"]).agg({"Quantity":"sum"}).head(10)
 
-#Almanya'yı seciyorum.
-df_ger=df[df["Country"]=="Germany"]  #9495 rows
-check_df(df)
+    #Invoice ları tekillestiriyoruz.
+    df.groupby(["Invoice","StockCode"]).agg({"Quantity":"sum"}).unstack().iloc[0:5,0:5]
 
-#Her bir ürünün StockCode a göre Quantity sini sum ediyoruz.
-df_ger.groupby(["Invoice","StockCode"]).agg({"Quantity":"sum"}).head(10)
+    df[(df["StockCode"] == 16235) & (df["Invoice"] == 538174)]
 
-#Invoice ları tekillestiriyoruz.
-df_ger.groupby(["Invoice","StockCode"]).agg({"Quantity":"sum"}).unstack().iloc[0:5,0:5]
+    #Satırlarda sadece bir adet fatura adı olsun.
+    #Sütunlarda ürünler olsun.
+    #kesişiminde hangi faturalardan kaçar tane olduğu yazsın.
+    df.groupby(["Invoice","StockCode"]).\
+        agg({"Quantity":"sum"}).\
+        unstack().fillna(0).iloc[0:5,0:5]
 
-df[(df["StockCode"] == 16235) & (df["Invoice"] == 538174)]
+    #Veriyi beklenen product forma getirdik.
+    df.groupby(["Invoice","StockCode"]).\
+        agg({"Quantity":"sum"}).\
+        unstack().fillna(0).\
+        applymap(lambda i:1 if i>0 else 0).iloc[0:5,0:5]
 
-#Satırlarda sadece bir adet fatura adı olsun.
-#Sütunlarda ürünler olsun.
-#kesişiminde hangi faturalardan kaçar tane olduğu yazsın.
-df_ger.groupby(["Invoice","StockCode"]).\
-    agg({"Quantity":"sum"}).\
-    unstack().fillna(0).iloc[0:5,0:5]
+    # Her bir invoice'da kaç eşsiz ürün vardır.
+    df.groupby("Invoice").agg({"StockCode":"nunique"})
 
-#Veriyi beklenen product forma getirdik.
-df_ger.groupby(["Invoice","StockCode"]).\
-    agg({"Quantity":"sum"}).\
-    unstack().fillna(0).\
-    applymap(lambda i:1 if i>0 else 0).iloc[0:5,0:5]
-
-# fonksiyonlaştırdık.
-# Stockcode yerine ürün isimlerini aldık.
-def create_invoice_product_df(dataframe):
-    return dataframe.groupby(['Invoice', 'Description'])['Quantity'].sum().unstack().fillna(0). \
-        applymap(lambda x: 1 if x > 0 else 0)
-
-ger_inv_pro_df = create_invoice_product_df(df_ger)
-
-ger_inv_pro_df.head()
-
-# Her bir invoice'da kaç eşsiz ürün vardır.
-df_ger.groupby("Invoice"). agg({"StockCode":"nunique"})
-
-# Her bir product kaç eşsiz sepettedir.
-df_ger.groupby("StockCode"). agg({"Invoice":"nunique"})
-
+    # Her bir product kaç eşsiz sepettedir.
+    df.groupby("StockCode").agg({"Invoice":"nunique"})
 
 ############################################
 # ASSOCIATION_RULE
 ############################################
+#Use apriori.
+#Select min_support value is 0.01.
+#Use_colnames= use column names.
+#Select supports of combinations of each item.
 
-#apriori kullanılıyor.
-#min_support değeri 0.01 olanları alsınn.
-#use_colnames= kolon isimlerini kullansın.
-#item ların tek tek ve kombinasyonlu supportları geldi.
-
-frequent_itemsets = apriori(ger_inv_pro_df, min_support=0.01, use_colnames=True)
-frequent_itemsets.sort_values("support", ascending=False)
-
-
-
-
-rules = association_rules(frequent_itemsets, metric="support", min_threshold=0.01)
-rules.head()
-rules.sort_values("lift", ascending=False).head()
-
-#conviction: Y olmadan X in beklenen frekansı
+#conviction: Y olmadan X in beklenen frekansıdır.
 #leverage: Lifte benzer. Supportu yüksek değere öncelik verir. Yanlıdır.
-#lift=daha az sıklığa rağmen güçlü ilişkileri bulabilir. Yansızdır. Support düşük olsa da ilişkiler nettir.
+#lift : Daha az sıklığa rağmen güçlü ilişkileri bulabilir. Yansızdır. Support düşük olsa da ilişkiler nettir.
 
-
-############################################
-# Functionalization
-############################################
-
-
-import pandas as pd
-pd.set_option('display.max_columns', None)
-from mlxtend.frequent_patterns import apriori, association_rules
-from preprocess.data_prep import crm_data_prep, create_invoice_product_df
-
-df_ = pd.read_excel("/Users/nHn/Desktop/online_retail_II.xlsx",
-                       sheet_name="Year 2010-2011")
-df = df_.copy()
-
-df = crm_data_prep(df)
+# Stockcode yerine ürün isimlerini aldık.
+def create_invoice_product_df(dataframe):
+    return dataframe.groupby(['Invoice', 'Description'])['Quantity'].sum().unstack().fillna(0). \
+        applymap(lambda x: 1 if x > 0 else 0)
 
 def create_rules(dataframe, country=False, head=5):
     if country:
@@ -128,8 +90,10 @@ def create_rules(dataframe, country=False, head=5):
 
     return rules
 
+df = read_data()
+check_df(df)
+df=data_prep(df)
+rules = create_rules(df,"Germany")
 
-rules = create_rules(df)
-
-#support ve lifte göre sıralama.
+#order by support and lift.
 rules.sort_values(["support","lift"], ascending= [False,False]).head()

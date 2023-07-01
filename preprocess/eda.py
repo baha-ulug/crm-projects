@@ -4,7 +4,6 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 def check_df(dataframe, head=5):
-    """Hello boyöööööz"""
     print("##################### Shape #####################")
     print(dataframe.shape)
     print("##################### Types #####################")
@@ -15,19 +14,17 @@ def check_df(dataframe, head=5):
     print(dataframe.tail(head))
     print("##################### NA #####################")
     print(dataframe.isnull().sum())
-    print("##################### Quantiles #####################")
-    print(dataframe.quantile([0, 0.05, 0.50, 0.95, 0.99, 1]).T)
+    #print("##################### Quantiles #####################")
+    #print(dataframe.quantile([0, 0.05, 0.50, 0.95, 0.99, 1]).T)
 
 
 def cat_summary(dataframe, col_name, plot=False):
-    """Gocuk.com"""
     print(pd.DataFrame({col_name: dataframe[col_name].value_counts(),
                         "Ratio": 100 * dataframe[col_name].value_counts() / len(dataframe)}))
     print("##########################################")
     if plot:
         sns.countplot(x=dataframe[col_name], data=dataframe)
         plt.show()
-
 
 def num_summary(dataframe, numerical_col, plot=False):
     quantiles = [0.05, 0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 0.95, 0.99]
@@ -38,8 +35,6 @@ def num_summary(dataframe, numerical_col, plot=False):
         plt.xlabel(numerical_col)
         plt.title(numerical_col)
         plt.show()
-
-
 
 def grab_col_names(dataframe, cat_th=10, car_th=20):
     """
@@ -79,8 +74,6 @@ def grab_col_names(dataframe, cat_th=10, car_th=20):
         Return olan 3 liste toplamı toplam değişken sayısına eşittir: cat_cols + num_cols + cat_but_car = değişken sayısı
 
     """
-
-
     # cat_cols, cat_but_car
     cat_cols = [col for col in dataframe.columns if dataframe[col].dtypes == "O"]
     num_but_cat = [col for col in dataframe.columns if dataframe[col].nunique() < cat_th and
