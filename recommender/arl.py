@@ -6,12 +6,11 @@
 # Data Preparation
 ###########################################
 import pandas as pd
+import numpy as np
 pd.set_option('display.max_columns', None)
 pd.set_option('display.expand_frame_repr', False)
 from mlxtend.frequent_patterns import apriori, association_rules
 from dotenv import load_dotenv
-from preprocess.eda import check_df
-from preprocess.data_prep import crm_data_prep, create_invoice_product_df
 import os 
 
 def read_data():
@@ -26,8 +25,8 @@ def read_data():
 def data_prep(df):
     df.dropna(inplace=True)
     df = df[~df["Invoice"].str.contains("C", na=False)]
-    df['TotalPrice'] = df['Quantity'] * df['Price']
-    df['InvoiceDate'] = pd.to_datetime(df['InvoiceDate'])
+    #df['TotalPrice'] = df['Quantity'] * df['Price']
+    #df['InvoiceDate'] = pd.to_datetime(df['InvoiceDate'])
     return df
 
 def eda_df():
@@ -76,6 +75,8 @@ def create_invoice_product_df(dataframe):
         applymap(lambda x: 1 if x > 0 else 0)
 
 def create_rules(dataframe, country=False, head=5):
+    dataframe=data_prep(dataframe)
+    
     if country:
         dataframe = dataframe[dataframe['Country'] == country]
         dataframe = create_invoice_product_df(dataframe)
@@ -87,13 +88,13 @@ def create_rules(dataframe, country=False, head=5):
         frequent_itemsets = apriori(dataframe, min_support=0.01, use_colnames=True)
         rules = association_rules(frequent_itemsets, metric="support", min_threshold=0.01)
         print(rules.sort_values("lift", ascending=False).head(head))
-
     return rules
-
+    
 df = read_data()
-check_df(df)
-df=data_prep(df)
+print(df.info())
+
 rules = create_rules(df,"Germany")
 
 #order by support and lift.
-rules.sort_values(["support","lift"], ascending= [False,False]).head()
+result = rules.sort_values(["support","lift"], ascending= [False,False]).head()
+print(result)
