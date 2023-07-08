@@ -21,9 +21,15 @@ pd.set_option('display.width', 500)
 ######################################################################################################
 # Step 1: Read the Data Set and Calculate the Average Score of the Product.
 ######################################################################################################
+def read_data():
+    import os
+    current_dir = os.path.dirname(os.path.abspath(__file__)) 
+    file_path = os.path.join(current_dir, '..', 'datasets', 'amazon_review.csv')
+    print(file_path)
+    #df = pd.read_csv('datasets/amazon_review.csv')
+    df = pd.read_csv(file_path)
+    return df
 
-df = pd.read_csv('datasets/amazon_review.csv')
-    
 def missing_values_analysis(df):
     na_columns = [col for col in df.columns if df[col].isnull().sum() > 0]
     n_miss = df[na_columns].isnull().sum().sort_values(ascending=True)
@@ -32,39 +38,28 @@ def missing_values_analysis(df):
     missing_df = pd.DataFrame(missing_df)
     return missing_df
 
-print(missing_values_analysis(df))
-
-product_rating = df['overall'].mean()
-#product_rating = 4.587589013224822
-
 ######################################################################################################
 # Step 2: Calculate the Weighted Average of Score by Date.
 ######################################################################################################
-
-df['reviewTime'] = pd.to_datetime(df['reviewTime'], format='%Y-%m-%d')
-# df['reviewTime'][0]: Timestamp('2014-07-23 00:00:00')
-
 def weighted_rating(df, m, C):
     """
-
-    This code is used to calculate a weighted score for a product. This score is based on both the product's
+    It is used to calculate a weighted score for a product. This score is based on both the product's
     popularity and users' average rating for the product.
 
-    The function takes three variables:
+    Inputs:
 
     df: A DataFrame containing the properties of the products
     m: Minimum number of votes
     C: Average score
+
+    R = df['overall'] -> Gets the column containing the average score for each product.
+    v = df['total_vote'] -> Gets the column containing the total number of votes for each product.
 
     The function calculates a weighted score for each product in the df DataFrame. For each product,
     the function determines the total number of votes (v) and the average score (R). It then calculates
     the weighted score using the formula.
 
     The functioning of the function is as follows:
-
-    df['total_vote']: Gets the column containing the total number of votes for each product.
-
-    df['overall']: Gets the column containing the average score for each product.
 
     m = 1: Determines the minimum number of votes. The function necessarily takes this value, but a specific
     value is assigned within the function.
@@ -90,42 +85,40 @@ def weighted_rating(df, m, C):
     else:
         return (v / (v + m) * R) + (m / (m + v) * C)
 
-
-df['weighted_rating'] = df.apply(lambda x: weighted_rating(x, 1, product_rating), axis=1)
-df['weighted_rating'].mean()
-# df['weighted_rating'].mean(): 0.4608903403691315
+def prep_data(df):
+    df['reviewTime'] = pd.to_datetime(df['reviewTime'], format='%Y-%m-%d')
+    # df['reviewTime'][0]: Timestamp('2014-07-23 00:00:00')
+    df['weighted_rating'] = df.apply(lambda x: weighted_rating(x, 1, product_rating), axis=1)
+    return df
 
 # Calculation of all weighted average ratings on a year-month basis with matplotlib
-grouped = df.groupby(pd.Grouper(key='reviewTime', freq='M')).agg({'weighted_rating': np.mean})
-plt.plot(grouped.index, grouped['weighted_rating'])
-plt.title('Monthly Weighted Average Ratings')
-plt.xlabel('Time')
-plt.ylabel('Weighted Average Rating')
-plt.show()
-
+def plot_weighted_average_ratings(df):
+    grouped = df.groupby(pd.Grouper(key='reviewTime', freq='M')).agg({'weighted_rating': np.mean})
+    plt.plot(grouped.index, grouped['weighted_rating'])
+    plt.title('Monthly Weighted Average Ratings')
+    plt.xlabel('Time')
+    plt.ylabel('Weighted Average Rating')
+    plt.show()
+    
 ######################################################################################################
 # Task 2: Specify 20 Reviews for the Product to be Displayed on the Product Detail Page.
 ######################################################################################################
+# Note:
+# total_vote is the total number of up-downs given to a comment. Up means helpful.
+# There is no helpful_no variable in the data set, it must be generated over existing variables.
 
 ######################################################################################################
 # Step 1. Generate the helpful_no variable
 ######################################################################################################
-
-df['helpful_no'] = df['total_vote'] - df['helpful_yes']
-
-
-# Note:
-# total_vote is the total number of up-downs given to a comment.
-# up means helpful.
-# There is no helpful_no variable in the data set, it must be generated over existing variables.
+def gen_helpful_no(df):
+    df['helpful_no'] = df['total_vote'] - df['helpful_yes']
+    return df
 
 ######################################################################################################
-# Step 2. Calculate score_pos_neg_diff, score_average_rating and wilson_lower_bound Scores and add to dataframe
+# Step 2. Calculate "score_pos_neg_diff", "score_average_rating" and "wilson_lower_bound" scores 
 ######################################################################################################
-
 def score_pos_neg_diff(positive, negative):
     return positive - negative
-
 
 def score_average_rating(up_vote, down_vote):
     total_vote = up_vote + down_vote
@@ -134,7 +127,6 @@ def score_average_rating(up_vote, down_vote):
     else:
         score = up_vote / (up_vote + down_vote)
         return score
-
 
 def wilson_lower_bound(up_vote, down_vote, confidence=0.95):
     total_vote = up_vote + down_vote
@@ -147,14 +139,40 @@ def wilson_lower_bound(up_vote, down_vote, confidence=0.95):
                                                                / total_vote)) / (1 + z * z / total_vote)
         return score
 
+if __name__=='__main__':
+    ##################### 1. READ DATA #############################
+    df = read_data()
+    print("1. dataframe is read succesfully")
 
-df['score_pos_neg_diff'] = df.apply(lambda x: score_pos_neg_diff(x['helpful_yes'], x['helpful_no']), axis=1)
-df['score_average_rating'] = df.apply(lambda x: score_average_rating(x['helpful_yes'], x['helpful_no']), axis=1)
-df['wilson_lower_bound'] = df.apply(lambda x: wilson_lower_bound(x['helpful_yes'], x['helpful_no']), axis=1)
+    ##################### 2. MISSING VALUE ANALYSIS #############################
+    print(missing_values_analysis(df))
+    print("2.missing values analysis is done")
+    product_rating = df['overall'].mean()
+    print("overall product_rating is: ", product_rating)
 
-######################################################################################################
-# Step 3. Identify 20 Comments and Interpret Results.
-######################################################################################################
+    ##################### 3. PREP DATA #############################
+    df = prep_data(df)
+    print("2. data prep is done")
+    print("weighted_rating is calculated: ", df['weighted_rating'].mean())
+    plot_weighted_average_ratings(df)
 
-df.sort_values("wilson_lower_bound", ascending=False).head(20)
-df.describe().T
+    ##################### 4. GENERATE HELPFUL_NO #############################
+    df = gen_helpful_no(df)
+    print("3. helpful_no is generated")
+
+    ##################### 5. POS NEG DIFFERENCE #############################
+    df['score_pos_neg_diff'] = df.apply(lambda x: score_pos_neg_diff(x['helpful_yes'], x['helpful_no']), axis=1)
+    print("4. score_pos_neg_diff is calculated")
+
+    ##################### 6. SCORE AVERAGE RATING #############################
+    df['score_average_rating'] = df.apply(lambda x: score_average_rating(x['helpful_yes'], x['helpful_no']), axis=1)
+    print("5. score_average_rating is calculated")
+
+    ##################### 7. WILSON LOWER BOUND #############################
+    df['wilson_lower_bound'] = df.apply(lambda x: wilson_lower_bound(x['helpful_yes'], x['helpful_no']), axis=1)
+    print("6. wilson_lower_bound is calculated")
+
+    ##################### 7. SORT WILSON LOWER BOUND DESC ORDER #############################
+    #Identify 20 Comments and Interpret Results.
+    print(df.sort_values("wilson_lower_bound", ascending=False).head(20))
+    df.describe().T
