@@ -16,7 +16,7 @@ def main():
     rfm = clv.rfm_df(df)
     print("3. step is done")
     
-    ##################### 4. CREATE AND FIT BETA  ##################
+    ##################### 4. CREATE AND FIT BETA GEOMETRIC DISTRIBUTION  ##################
     #Create the BG/NBD model and fit
     bgf = clv.fit_bgf(rfm)
     print("4. step is done")
@@ -27,7 +27,7 @@ def main():
     clv.pred_bgf(bgf=bgf,rfm=rfm,week=24,n_cust=10)
     print("5. step is done")
     
-    ##################### 6. TOP NTH CUSTOMER  MOST LIKELT TO PURCHASE ############################
+    ##################### 6. TOP NTH CUSTOMER  MOST LIKELY TO PURCHASE ############################
     ##Who are the 10 customers we expect the most to purchase in a Input Week?
     rfm = clv.exp_sales(bgf,rfm,week=24)
     print("6. step is done")
