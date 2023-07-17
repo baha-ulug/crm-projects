@@ -2,8 +2,13 @@
 import numpy as np
 import pandas as pd
 
-users = pd.read_csv("datasets\users.csv")
+users = pd.read_csv(r"datasets\users.csv")
 purchases = pd.read_csv("datasets\purchases.csv")
+
+print(users.head())
+print(users.shape)
+print(purchases.head())
+print(purchases.shape)
 
 df = purchases.merge(users, how="inner", on="uid")
 agg_df = df.groupby(["country", "device", "gender", "age"]).agg({"price": "sum"})
