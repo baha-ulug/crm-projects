@@ -5,7 +5,6 @@ import string
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-
 def gen_df():
     # Veri setinin boyutunu belirleme
     num_customers = 1000
