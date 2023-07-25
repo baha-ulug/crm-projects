@@ -104,19 +104,23 @@ def fit_bgf(rfm):
     return bgf
 
 def pred_bgf(bgf,rfm,week=24,n_cust=10):
-    # week/4 ay içinde en çok satın alma beklediğimiz n_cust müşteri kimdir?
+    """
+    'conditional_expected_number_of_purchases_up_to_time' and 'predict' are basically same.
+    """
+
+    # who is the "n_cust" customer that we expect the most to purchase in a given "week" period?
     top_customers = bgf.conditional_expected_number_of_purchases_up_to_time(week,
                                                             rfm['frequency'],
                                                             rfm['recency_weekly_p'],
                                                             rfm['tenure_weekly_p']).sort_values(ascending=False)
-    print(top_customers.head(n_cust))
+    print(f"top {n_cust} customer in {week} weeks: ", top_customers.head(n_cust))
 
-def exp_sales(bgf,rfm,week=24):
     #Who are the 10 customers we expect the most to purchase in a month?
     rfm["exp_sales_6_month"] = bgf.predict(week,
                                             rfm['frequency'],
                                             rfm['recency_weekly_p'],
                                             rfm['tenure_weekly_p'])
+    
     rfm.sort_values("exp_sales_6_month", ascending=False).head(20)
     return rfm
 

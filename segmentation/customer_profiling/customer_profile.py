@@ -38,7 +38,6 @@ def gen_df():
 
 df = gen_df()
 
-
 def plot_df(df):
     # İlk 5 satırı gösterme
     print(df.head())
@@ -60,7 +59,6 @@ def plot_df(df):
     plt.show()
 
 plot_df(df)
-
 
 def segmentation(df):
     # Yaş ve gelir seviyesine göre segmentasyon yapma
