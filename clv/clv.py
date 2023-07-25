@@ -125,7 +125,7 @@ def pred_bgf(bgf,rfm,week=24,n_cust=10):
     return rfm
 
 def expected_transaction(bgf,rfm,week=24):
-    # 6 Ayda Tüm Şirketin Beklenen Satış Sayısı Nedir?  952.4548865072431
+    # expected sales of the whole company during the given week? 952.4548865072431
     trasaction_count = bgf.predict(week,
                 rfm['frequency'],
                 rfm['recency_weekly_p'],
@@ -133,7 +133,7 @@ def expected_transaction(bgf,rfm,week=24):
     print(f"Number of transaction in {week} week is: {trasaction_count}")
 
 def eval_predictions(bgf):
-    # Tahmin Sonuçlarının Değerlendirilmesi
+    # Evaluation of Forecast Results
     plot_period_transactions(bgf)
     plt.show()
 
@@ -146,8 +146,6 @@ def fit_ggf(rfm):
     return ggf
 
 def pred_ggf(ggf,rfm):
-    ggf.conditional_expected_average_profit(rfm['frequency'],
-                                            rfm['monetary_avg']).sort_values(ascending=False).head(10)
     rfm["expected_average_profit"] = ggf.conditional_expected_average_profit(rfm['frequency'],
                                                                             rfm['monetary_avg'])
     return rfm
